@@ -1,6 +1,3 @@
-# retail-reward-service
-Reward points calculation service for retail shop
-=======
 # Retail Reward Service
 
 Spring Boot 2.7 / Java 8 application that calculates reward points for retail customers from purchase transactions.
