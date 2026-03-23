@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # retail-reward-service
 Reward points calculation service for retail shop
 =======
