@@ -34,6 +34,12 @@ class ValidationUtilsTest {
     }
 
     @Test
+    void shouldAllowRequestWhenMonthsAndDateRangeAreProvidedTogether() {
+        assertDoesNotThrow(() -> ValidationUtils.validateRequest(2, LocalDate.of(2026, 2, 1),
+                LocalDate.of(2026, 3, 31)));
+    }
+
+    @Test
     void shouldCreateUtilityClassesViaReflectionOnly() throws Exception {
         Constructor<ValidationUtils> validationUtilsConstructor = ValidationUtils.class.getDeclaredConstructor();
         validationUtilsConstructor.setAccessible(true);

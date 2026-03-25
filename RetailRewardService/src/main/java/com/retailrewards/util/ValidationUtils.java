@@ -18,9 +18,6 @@ public final class ValidationUtils {
         if (months != null && months < 1) {
             throw new InvalidRequestException(ApplicationConstants.MESSAGE_INVALID_MONTHS);
         }
-//        if (months != null && (startDate != null || endDate != null)) {
-//            throw new InvalidRequestException(ApplicationConstants.MESSAGE_MONTHS_AND_DATE_RANGE);
-//        }
         if (startDate == null && endDate == null) {
             return;
         }

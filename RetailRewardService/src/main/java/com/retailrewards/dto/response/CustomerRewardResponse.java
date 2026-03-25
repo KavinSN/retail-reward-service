@@ -1,0 +1,19 @@
+package com.retailrewards.dto.response;
+
+import java.util.List;
+import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
+public class CustomerRewardResponse {
+
+    private final String customerId;
+    private final String customerName;
+    private final String startDate;
+    private final String endDate;
+    private final Map<String, Long> monthlyPoints;
+    private final long totalPoints;
+    private final List<TransactionRewardDetails> transactions;
+}

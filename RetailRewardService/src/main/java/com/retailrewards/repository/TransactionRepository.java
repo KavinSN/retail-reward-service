@@ -5,9 +5,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 import javax.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
@@ -20,20 +22,47 @@ public class TransactionRepository {
 
     public CompletableFuture<List<Transaction>> findAllTransactionsAsync() {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                Thread.sleep(150L);
-            } catch (InterruptedException interruptedException) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Transaction retrieval was interrupted", interruptedException);
-            }
-            log.info("Transactions fetched from in-memory dataset");
+            simulateDelay();
+            log.info("All transactions fetched from in-memory dataset");
             return buildTransactions();
+        }, rewardsTaskExecutor);
+    }
+
+    public CompletableFuture<List<Transaction>> findTransactionsByCustomerIdAndDateRangeAsync(String customerId,
+            LocalDate startDate, LocalDate endDate) {
+        return CompletableFuture.supplyAsync(() -> {
+            simulateDelay();
+            log.info("Transactions fetched for customer {} between {} and {}", customerId, startDate, endDate);
+            return buildTransactions().stream()
+                    .filter(transaction -> transaction.getCustomerId().equalsIgnoreCase(customerId))
+                    .filter(transaction -> !transaction.getTransactionDate().isBefore(startDate))
+                    .filter(transaction -> !transaction.getTransactionDate().isAfter(endDate))
+                    .collect(Collectors.toList());
+        }, rewardsTaskExecutor);
+    }
+
+    public CompletableFuture<Optional<LocalDate>> findLatestTransactionDateByCustomerIdAsync(String customerId) {
+        return CompletableFuture.supplyAsync(() -> {
+            simulateDelay();
+            return buildTransactions().stream()
+                    .filter(transaction -> transaction.getCustomerId().equalsIgnoreCase(customerId))
+                    .map(Transaction::getTransactionDate)
+                    .max(LocalDate::compareTo);
         }, rewardsTaskExecutor);
     }
 
     @PreDestroy
     void shutdownExecutor() {
         rewardsTaskExecutor.shutdown();
+    }
+
+    private void simulateDelay() {
+        try {
+            Thread.sleep(150L);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Transaction retrieval was interrupted", interruptedException);
+        }
     }
 
     private List<Transaction> buildTransactions() {

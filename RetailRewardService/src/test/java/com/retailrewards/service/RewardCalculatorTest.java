@@ -38,6 +38,13 @@ class RewardCalculatorTest {
     }
 
     @Test
+    void shouldCalculatePointsUsingWholeDollarSpendOnly() {
+        assertEquals(0L, rewardCalculator.calculatePoints(new BigDecimal("50.99")));
+        assertEquals(50L, rewardCalculator.calculatePoints(new BigDecimal("100.99")));
+        assertEquals(90L, rewardCalculator.calculatePoints(new BigDecimal("120.99")));
+    }
+
+    @Test
     void shouldCalculateTotalPointsForTransactions() {
         long totalPoints = rewardCalculator.calculateTotalPoints(Arrays.asList(
                 new RewardTransaction(new BigDecimal("120.00"), LocalDate.of(2026, 3, 10)),
@@ -55,9 +62,9 @@ class RewardCalculatorTest {
                 new RewardTransaction(new BigDecimal("99.00"), LocalDate.of(2026, 2, 10)),
                 new RewardTransaction(new BigDecimal("120.00"), LocalDate.of(2026, 3, 13))));
 
-        assertEquals(Arrays.asList("MARCH", "FEBRUARY", "JANUARY"), Arrays.asList(monthlyPoints.keySet().toArray()));
-        assertEquals(Long.valueOf(220L), monthlyPoints.get("MARCH"));
-        assertEquals(Long.valueOf(49L), monthlyPoints.get("FEBRUARY"));
-        assertEquals(Long.valueOf(25L), monthlyPoints.get("JANUARY"));
+        assertEquals(Arrays.asList("2026-Mar", "2026-Feb", "2026-Jan"), Arrays.asList(monthlyPoints.keySet().toArray()));
+        assertEquals(Long.valueOf(220L), monthlyPoints.get("2026-Mar"));
+        assertEquals(Long.valueOf(49L), monthlyPoints.get("2026-Feb"));
+        assertEquals(Long.valueOf(25L), monthlyPoints.get("2026-Jan"));
     }
 }
