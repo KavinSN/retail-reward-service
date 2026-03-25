@@ -9,6 +9,4 @@ public class Customer {
 
     private final String customerId;
     private final String customerName;
-    private final String tier;
-    private final String email;
 }
