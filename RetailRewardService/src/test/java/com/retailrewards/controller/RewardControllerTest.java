@@ -1,16 +1,150 @@
 package com.retailrewards.controller;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.hamcrest.Matchers.hasSize;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.retailrewards.dto.response.CustomerRewardResponse;
+import com.retailrewards.dto.response.MonthlyRewardPoints;
+import com.retailrewards.dto.response.TransactionRewardDetails;
+import com.retailrewards.exception.CustomerNotFoundException;
+import com.retailrewards.exception.GlobalExceptionHandler;
+import com.retailrewards.exception.InvalidRequestException;
+import com.retailrewards.service.RewardService;
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+
+@WebMvcTest(RewardController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandler.class)
+class RewardControllerUnitTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private RewardService rewardService;
+
+    @Test
+    void shouldReturnCustomerRewardsForValidRequest() throws Exception {
+        given(rewardService.getCustomerRewards(eq("C1001"), eq(2), eq(null), eq(null)))
+                .willReturn(buildResponse());
+
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001").param("months", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerId").value("C1001"))
+                .andExpect(jsonPath("$.customerName").value("Kavin"))
+                .andExpect(jsonPath("$.startDate").value("2026-02-01"))
+                .andExpect(jsonPath("$.endDate").value("2026-03-31"))
+                .andExpect(jsonPath("$.monthlyPoints[0].year").value(2026))
+                .andExpect(jsonPath("$.monthlyPoints[0].month").value("March"))
+                .andExpect(jsonPath("$.monthlyPoints[0].rewardPoints").value(271))
+                .andExpect(jsonPath("$.transactions[0].transactionId").value("T10004"));
+
+        verify(rewardService).getCustomerRewards("C1001", 2, null, null);
+    }
+
+    @Test
+    void shouldPassDateRangeParametersToService() throws Exception {
+        given(rewardService.getCustomerRewards(eq("C1002"), eq(null), eq(LocalDate.of(2026, 2, 1)),
+                eq(LocalDate.of(2026, 3, 31)))).willReturn(buildResponse());
+
+        mockMvc.perform(get("/api/v1/rewards/customers/C1002")
+                        .param("startDate", "2026-02-01")
+                        .param("endDate", "2026-03-31"))
+                .andExpect(status().isOk());
+
+        verify(rewardService).getCustomerRewards("C1002", null, LocalDate.of(2026, 2, 1),
+                LocalDate.of(2026, 3, 31));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenMonthConstraintFailsBeforeServiceExecution() throws Exception {
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001").param("months", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.messages[0]").value("must be greater than or equal to 1"));
+
+        verifyNoInteractions(rewardService);
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenDateFormatIsInvalidBeforeServiceExecution() throws Exception {
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001")
+                        .param("startDate", "01-02-2026"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.messages[0]").value("Invalid value for parameter 'startDate'"));
+
+        verifyNoInteractions(rewardService);
+    }
+
+    @Test
+    void shouldTranslateCustomerNotFoundException() throws Exception {
+        given(rewardService.getCustomerRewards(eq("C9999"), eq(null), eq(null), eq(null)))
+                .willThrow(new CustomerNotFoundException("C9999"));
+
+        mockMvc.perform(get("/api/v1/rewards/customers/C9999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.path").value("/api/v1/rewards/customers/C9999"))
+                .andExpect(jsonPath("$.messages[0]").value("Customer not found: C9999"));
+    }
+
+    @Test
+    void shouldTranslateInvalidRequestException() throws Exception {
+        given(rewardService.getCustomerRewards(eq("C1001"), eq(null), eq(null), eq(null)))
+                .willThrow(new InvalidRequestException("No transaction data available"));
+
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.path").value("/api/v1/rewards/customers/C1001"))
+                .andExpect(jsonPath("$.messages[0]").value("No transaction data available"));
+    }
+
+    @Test
+    void shouldTranslateUnexpectedException() throws Exception {
+        given(rewardService.getCustomerRewards(eq("C1001"), eq(null), eq(null), eq(null)))
+                .willThrow(new RuntimeException("boom"));
+
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                .andExpect(jsonPath("$.path").value("/api/v1/rewards/customers/C1001"))
+                .andExpect(jsonPath("$.messages[0]").value("An unexpected error occurred"));
+    }
+
+    private CustomerRewardResponse buildResponse() {
+        return new CustomerRewardResponse(
+                "C1001",
+                "Kavin",
+                "2026-02-01",
+                "2026-03-31",
+                Arrays.asList(
+                        new MonthlyRewardPoints(2026, "March", 271),
+                        new MonthlyRewardPoints(2026, "February", 110)),
+                381L,
+                Collections.singletonList(
+                        new TransactionRewardDetails("T10004", "2026-02-16", "Electronics accessories", "130.00",
+                                110L)));
+    }
+}
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -21,56 +155,47 @@ class RewardControllerTest {
 
     @Test
     void shouldReturnCombinedRewardsAndTransactionsForSpecifiedCustomer() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"customerId\":\"C1001\"}"))
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.customerId").value("C1001"))
                 .andExpect(jsonPath("$.customerName").value("Kavin"))
                 .andExpect(jsonPath("$.startDate").value("2026-01-01"))
                 .andExpect(jsonPath("$.endDate").value("2026-03-31"))
-                .andExpect(jsonPath("$.monthlyPoints.2026-Mar").value(271))
-                .andExpect(jsonPath("$.monthlyPoints.2026-Feb").value(110))
-                .andExpect(jsonPath("$.monthlyPoints.2026-Jan").value(115))
+                .andExpect(jsonPath("$.monthlyPoints", hasSize(3)))
+                .andExpect(jsonPath("$.monthlyPoints[0].year").value(2026))
+                .andExpect(jsonPath("$.monthlyPoints[0].month").value("March"))
+                .andExpect(jsonPath("$.monthlyPoints[0].rewardPoints").value(271))
+                .andExpect(jsonPath("$.monthlyPoints[1].year").value(2026))
+                .andExpect(jsonPath("$.monthlyPoints[1].month").value("February"))
+                .andExpect(jsonPath("$.monthlyPoints[1].rewardPoints").value(110))
+                .andExpect(jsonPath("$.monthlyPoints[2].year").value(2026))
+                .andExpect(jsonPath("$.monthlyPoints[2].month").value("January"))
+                .andExpect(jsonPath("$.monthlyPoints[2].rewardPoints").value(115))
                 .andExpect(jsonPath("$.totalPoints").value(496))
                 .andExpect(jsonPath("$.transactions", hasSize(6)))
                 .andExpect(jsonPath("$.transactions[0].transactionId").value("T10001"));
     }
 
     @Test
-    void shouldRejectRewardRequestWhenBodyIsMissing() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void shouldRejectRewardRequestWhenCustomerIdIsMissing() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.messages[0]").value("customerId is required"));
-    }
-
-    @Test
     void shouldReturnRewardsForSpecifiedMonths() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"customerId\":\"C1001\",\"months\":2}"))
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001")
+                        .param("months", "2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.customerId").value("C1001"))
                 .andExpect(jsonPath("$.startDate").value("2026-02-01"))
                 .andExpect(jsonPath("$.endDate").value("2026-03-31"))
-                .andExpect(jsonPath("$.monthlyPoints.2026-Jan").doesNotExist())
+                .andExpect(jsonPath("$.monthlyPoints", hasSize(2)))
+                .andExpect(jsonPath("$.monthlyPoints[0].month").value("March"))
+                .andExpect(jsonPath("$.monthlyPoints[1].month").value("February"))
                 .andExpect(jsonPath("$.totalPoints").value(381))
                 .andExpect(jsonPath("$.transactions", hasSize(4)));
     }
 
     @Test
     void shouldReturnCustomerSummaryForDateRange() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"customerId\":\"C1002\",\"startDate\":\"2026-02-01\",\"endDate\":\"2026-03-31\"}"))
+        mockMvc.perform(get("/api/v1/rewards/customers/C1002")
+                        .param("startDate", "2026-02-01")
+                        .param("endDate", "2026-03-31"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.customerId").value("C1002"))
                 .andExpect(jsonPath("$.startDate").value("2026-02-01"))
@@ -80,42 +205,71 @@ class RewardControllerTest {
     }
 
     @Test
+    void shouldResolveDateRangeWhenOnlyStartDateIsProvided() throws Exception {
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001")
+                        .param("startDate", "2026-02-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerId").value("C1001"))
+                .andExpect(jsonPath("$.startDate").value("2026-02-01"))
+                .andExpect(jsonPath("$.endDate").value("2026-04-30"))
+                .andExpect(jsonPath("$.totalPoints").value(381))
+                .andExpect(jsonPath("$.transactions", hasSize(4)));
+    }
+
+    @Test
+    void shouldResolveDateRangeWhenOnlyEndDateIsProvided() throws Exception {
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001")
+                        .param("endDate", "2026-03-31"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerId").value("C1001"))
+                .andExpect(jsonPath("$.startDate").value("2026-01-01"))
+                .andExpect(jsonPath("$.endDate").value("2026-03-31"))
+                .andExpect(jsonPath("$.totalPoints").value(496))
+                .andExpect(jsonPath("$.transactions", hasSize(6)));
+    }
+
+    @Test
     void shouldReturnNotFoundForUnknownCustomer() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"customerId\":\"C9999\"}"))
+        mockMvc.perform(get("/api/v1/rewards/customers/C9999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.messages[0]").value("Customer not found: C9999"));
     }
 
     @Test
     void shouldRejectInvalidMonthCount() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"customerId\":\"C1001\",\"months\":0}"))
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001")
+                        .param("months", "0"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.messages[0]").value("months must be greater than 0"));
+                .andExpect(jsonPath("$.messages[0]").value("must be greater than or equal to 1"));
     }
 
     @Test
     void shouldRejectInvalidDateRange() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"customerId\":\"C1001\",\"startDate\":\"2026-03-31\",\"endDate\":\"2026-01-01\"}"))
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001")
+                        .param("startDate", "2026-03-31")
+                        .param("endDate", "2026-01-01"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.messages[0]")
                         .value("Provide a valid date range with startDate on or before endDate"));
     }
 
     @Test
-    void shouldPreferMonthsWhenMonthsAndDateRangeAreProvidedTogether() throws Exception {
-        mockMvc.perform(post("/api/v1/rewards/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"customerId\":\"C1001\",\"months\":2,\"startDate\":\"2026-02-01\",\"endDate\":\"2026-03-31\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.customerId").value("C1001"))
-                .andExpect(jsonPath("$.startDate").value("2026-02-01"))
-                .andExpect(jsonPath("$.endDate").value("2026-03-31"))
-                .andExpect(jsonPath("$.transactions", hasSize(4)));
+    void shouldRejectWhenMonthsAndDateRangeAreProvidedTogether() throws Exception {
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001")
+                        .param("months", "2")
+                        .param("startDate", "2026-02-01")
+                        .param("endDate", "2026-03-31"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.messages[0]")
+                        .value("Provide either months or a startDate/endDate range, not both"));
+    }
+
+    @Test
+    void shouldRejectInvalidDateFormat() throws Exception {
+        mockMvc.perform(get("/api/v1/rewards/customers/C1001")
+                        .param("startDate", "01-02-2026")
+                        .param("endDate", "31-03-2026"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.messages[0]").value("Invalid value for parameter 'startDate'"));
     }
 }

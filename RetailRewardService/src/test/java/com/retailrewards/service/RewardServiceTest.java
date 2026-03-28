@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.retailrewards.calculator.RewardCalculator;
 import com.retailrewards.dto.response.CustomerRewardResponse;
 import com.retailrewards.exception.CustomerNotFoundException;
 import com.retailrewards.exception.InvalidRequestException;
@@ -62,8 +63,13 @@ class RewardServiceTest {
         assertEquals("Kavin", response.getCustomerName());
         assertEquals("2026-01-01", response.getStartDate());
         assertEquals("2026-03-31", response.getEndDate());
-        assertEquals(Long.valueOf(90L), response.getMonthlyPoints().get("2026-Jan"));
-        assertEquals(Long.valueOf(25L), response.getMonthlyPoints().get("2026-Mar"));
+        assertEquals(2, response.getMonthlyPoints().size());
+        assertEquals(2026, response.getMonthlyPoints().get(0).getYear());
+        assertEquals("March", response.getMonthlyPoints().get(0).getMonth());
+        assertEquals(25L, response.getMonthlyPoints().get(0).getRewardPoints());
+        assertEquals(2026, response.getMonthlyPoints().get(1).getYear());
+        assertEquals("January", response.getMonthlyPoints().get(1).getMonth());
+        assertEquals(90L, response.getMonthlyPoints().get(1).getRewardPoints());
         assertEquals(115L, response.getTotalPoints());
         assertEquals(2, response.getTransactions().size());
     }
@@ -88,9 +94,53 @@ class RewardServiceTest {
         assertEquals("2026-02-01", response.getStartDate());
         assertEquals("2026-03-31", response.getEndDate());
         assertEquals(2, response.getMonthlyPoints().size());
-        assertEquals(Long.valueOf(49L), response.getMonthlyPoints().get("2026-Feb"));
-        assertEquals(Long.valueOf(5L), response.getMonthlyPoints().get("2026-Mar"));
+        assertEquals(2026, response.getMonthlyPoints().get(0).getYear());
+        assertEquals("March", response.getMonthlyPoints().get(0).getMonth());
+        assertEquals(5L, response.getMonthlyPoints().get(0).getRewardPoints());
+        assertEquals(2026, response.getMonthlyPoints().get(1).getYear());
+        assertEquals("February", response.getMonthlyPoints().get(1).getMonth());
+        assertEquals(49L, response.getMonthlyPoints().get(1).getRewardPoints());
         assertEquals(54L, response.getTotalPoints());
+        assertEquals(2, response.getTransactions().size());
+    }
+
+    @Test
+    void shouldResolveThreeMonthWindowWhenOnlyStartDateIsProvided() {
+        Customer customer = new Customer("C1001", "Kavin");
+        List<Transaction> transactions = Arrays.asList(
+                new Transaction("T1", "C1001", LocalDate.of(2026, 2, 4), new BigDecimal("45.00"), "Inside range"),
+                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 12), new BigDecimal("210.00"), "Inside range"));
+
+        when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
+                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 4, 30)))
+                .thenReturn(CompletableFuture.completedFuture(transactions));
+
+        CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
+                LocalDate.of(2026, 2, 1), null);
+
+        assertEquals("2026-02-01", response.getStartDate());
+        assertEquals("2026-04-30", response.getEndDate());
+        assertEquals(2, response.getTransactions().size());
+    }
+
+    @Test
+    void shouldResolveThreeMonthWindowWhenOnlyEndDateIsProvided() {
+        Customer customer = new Customer("C1001", "Kavin");
+        List<Transaction> transactions = Arrays.asList(
+                new Transaction("T1", "C1001", LocalDate.of(2026, 1, 21), new BigDecimal("75.00"), "Inside range"),
+                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 22), new BigDecimal("51.25"), "Inside range"));
+
+        when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31)))
+                .thenReturn(CompletableFuture.completedFuture(transactions));
+
+        CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
+                null, LocalDate.of(2026, 3, 31));
+
+        assertEquals("2026-01-01", response.getStartDate());
+        assertEquals("2026-03-31", response.getEndDate());
         assertEquals(2, response.getTransactions().size());
     }
 

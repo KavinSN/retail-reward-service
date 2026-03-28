@@ -14,6 +14,12 @@ public class CustomerRepository {
             new Customer("C1002", "Prabhu"),
             new Customer("C1003", "KP"));
 
+    /**
+     * Looks up a customer by identifier from the in-memory dataset.
+     *
+     * @param customerId customer identifier to search for
+     * @return matching customer when present
+     */
     public Optional<Customer> findById(String customerId) {
         return customers.stream()
                 .filter(customer -> customer.getCustomerId().equalsIgnoreCase(customerId))

@@ -5,8 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.retailrewards.exception.InvalidRequestException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
@@ -26,28 +24,20 @@ class ValidationUtilsTest {
     }
 
     @Test
-    void shouldRejectRequestWhenOnlyOneDateIsProvided() {
+    void shouldAllowRequestWhenOnlyStartDateIsProvided() {
+        assertDoesNotThrow(() -> ValidationUtils.validateRequest(null, LocalDate.of(2026, 3, 1), null));
+    }
+
+    @Test
+    void shouldAllowRequestWhenOnlyEndDateIsProvided() {
+        assertDoesNotThrow(() -> ValidationUtils.validateRequest(null, null, LocalDate.of(2026, 3, 31)));
+    }
+
+    @Test
+    void shouldRejectRequestWhenMonthsAndDateRangeAreProvidedTogether() {
         InvalidRequestException exception = assertThrows(InvalidRequestException.class,
-                () -> ValidationUtils.validateRequest(null, LocalDate.of(2026, 3, 1), null));
+                () -> ValidationUtils.validateRequest(2, LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31)));
 
-        assertEquals(ApplicationConstants.MESSAGE_INVALID_DATE_RANGE, exception.getMessage());
-    }
-
-    @Test
-    void shouldAllowRequestWhenMonthsAndDateRangeAreProvidedTogether() {
-        assertDoesNotThrow(() -> ValidationUtils.validateRequest(2, LocalDate.of(2026, 2, 1),
-                LocalDate.of(2026, 3, 31)));
-    }
-
-    @Test
-    void shouldCreateUtilityClassesViaReflectionOnly() throws Exception {
-        Constructor<ValidationUtils> validationUtilsConstructor = ValidationUtils.class.getDeclaredConstructor();
-        validationUtilsConstructor.setAccessible(true);
-        validationUtilsConstructor.newInstance();
-
-        Constructor<ApplicationConstants> applicationConstantsConstructor =
-                ApplicationConstants.class.getDeclaredConstructor();
-        applicationConstantsConstructor.setAccessible(true);
-        applicationConstantsConstructor.newInstance();
+        assertEquals(ApplicationConstants.MESSAGE_MONTHS_AND_DATE_RANGE, exception.getMessage());
     }
 }
