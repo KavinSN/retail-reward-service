@@ -1,6 +1,6 @@
 # Retail Reward Service
 
-Spring Boot 2.7 / Java 8 application that calculates reward points for a retail customer and returns both the summary and transaction-level details in a single API response.
+Spring Boot application that calculates reward points for a retail customer and returns both the summary and transaction-level details in a single API response.
 
 ## Application Overview
 
@@ -26,26 +26,16 @@ The application exposes:
 - Spring Boot 2.7.18
 - Maven
 - In-memory repositories for customers and transactions
-- Bean validation with `@Valid`
-- Centralized exception handling with `@RestControllerAdvice`
-
-## Build
-```powershell
-mvn clean test
-```
-
-## Run
-```powershell
-mvn spring-boot:run
-```
-The application starts on `http://localhost:8080`.
 
 ## Validation Notes
 - `customerId` is required.
+- `startDate`/`endDate` format will be `yyyy-mm-dd`
 - When neither `months` nor `startDate`/`endDate` is provided, consider the latest 3 months available for that customer.
-- When both `months` and `startDate`/`endDate` are provided, uses `months` and ignores the date range.
+- Use either `months` or `startDate`/`endDate`, not both.
 - `months` must be greater than `0` when provided.
-- `startDate` must be on or before `endDate`.
+- When only `startDate` is provided, the service uses a 3-month inclusive window starting from that date.
+- When only `endDate` is provided, the service uses a 3-month inclusive window ending on that date.
+- If both `startDate` and `endDate` are provided, `startDate` must be on or before `endDate`.
 
 ## Project Structure
 - `src/main/java/com/retailrewards/controller`
@@ -59,15 +49,12 @@ The application starts on `http://localhost:8080`.
 ### Customer rewards and transactions
 Endpoint:
 ```http
-POST /api/v1/rewards/customers
-Content-Type: application/json
+GET /api/v1/rewards/customers/{customerId}
 ```
 Sample request for the default three-month period:
 
-```json
-{
-  "customerId": "C1001"
-}
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001"
 ```
 
 Sample response:
@@ -78,11 +65,23 @@ Sample response:
   "customerName": "Kavin",
   "startDate": "2026-01-01",
   "endDate": "2026-03-31",
-  "monthlyPoints": {
-    "2026-Mar": 271,
-    "2026-Feb": 110,
-    "2026-Jan": 115
-  },
+  "monthlyPoints": [
+    {
+      "year": 2026,
+      "month": "March",
+      "rewardPoints": 271
+    },
+    {
+      "year": 2026,
+      "month": "February",
+      "rewardPoints": 110
+    },
+    {
+      "year": 2026,
+      "month": "January",
+      "rewardPoints": 115
+    }
+  ],
   "totalPoints": 496,
   "transactions": [
     {
@@ -133,12 +132,8 @@ Sample response:
 
 Sample request for an explicit date range:
 
-```json
-{
-  "customerId": "C1002",
-  "startDate": "2026-02-01",
-  "endDate": "2026-03-31"
-}
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1002?startDate=2026-02-01&endDate=2026-03-31"
 ```
 
 Sample response:
@@ -149,10 +144,18 @@ Sample response:
   "customerName": "Prabhu",
   "startDate": "2026-02-01",
   "endDate": "2026-03-31",
-  "monthlyPoints": {
-    "2026-Mar": 495,
-    "2026-Feb": 179
-  },
+  "monthlyPoints": [
+    {
+      "year": 2026,
+      "month": "March",
+      "rewardPoints": 495
+    },
+    {
+      "year": 2026,
+      "month": "February",
+      "rewardPoints": 179
+    }
+  ],
   "totalPoints": 674,
   "transactions": [
     {
@@ -186,3 +189,200 @@ Sample response:
   ]
 }
 ```
+
+Sample request with only `startDate`:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?startDate=2026-02-01"
+```
+
+This resolves to the inclusive period `2026-02-01` through `2026-04-30`.
+
+Sample request with only `endDate`:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?endDate=2026-03-31"
+```
+
+This resolves to the inclusive period `2026-01-01` through `2026-03-31`.
+
+## Build
+1. Open Command Prompt in the project root.
+2. Verify Java and Maven are available in the machine:
+
+```cmd
+java -version
+mvn -version
+```
+
+3. Run the build and tests:
+
+```cmd
+mvn clean test
+```
+
+## Run
+1. Use the same Command Prompt session.
+2. Start the application:
+
+```cmd
+mvn spring-boot:run
+```
+
+## Test Cases
+
+### Positive cases
+
+Default latest three months:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001"
+```
+
+Expected status: `200 OK`
+
+Specific rolling months:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?months=2"
+```
+
+Expected status: `200 OK`
+
+Explicit date range:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1002?startDate=2026-02-01&endDate=2026-03-31"
+```
+
+Expected status: `200 OK`
+
+Only `startDate`:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?startDate=2026-02-01"
+```
+
+Expected status: `200 OK`
+
+Only `endDate`:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?endDate=2026-03-31"
+```
+
+Expected status: `200 OK`
+
+Valid customer with no transactions in range:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?startDate=2026-04-01&endDate=2026-04-30"
+```
+
+Expected status: `200 OK`
+
+Another valid customer:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1003"
+```
+
+Expected status: `200 OK`
+
+### Negative cases
+
+Unknown customer:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C9999"
+```
+
+Expected status: `404 Not Found`
+
+`months=0`:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?months=0"
+```
+
+Expected status: `400 Bad Request`
+
+Negative months:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?months=-1"
+```
+
+Expected status: `400 Bad Request`
+
+Invalid date order:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?startDate=2026-03-31&endDate=2026-01-01"
+```
+
+Expected status: `400 Bad Request`
+
+`months` with date range:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?months=2&startDate=2026-02-01&endDate=2026-03-31"
+```
+
+Expected status: `400 Bad Request`
+
+`months` with only `startDate`:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?months=2&startDate=2026-02-01"
+```
+
+Expected status: `400 Bad Request`
+
+`months` with only `endDate`:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?months=2&endDate=2026-03-31"
+```
+
+Expected status: `400 Bad Request`
+
+Invalid date format:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?startDate=01-02-2026&endDate=31-03-2026"
+```
+
+Expected status: `400 Bad Request`
+
+Invalid single date format:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?startDate=2026/02/01"
+```
+
+Expected status: `400 Bad Request`
+
+Invalid months type:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/C1001?months=abc"
+```
+
+Expected status: `400 Bad Request`
+
+Blank customer id path:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/%20"
+```
+
+Expected status: `404 Not Found` or `400 Bad Request` depending on client and URL handling
+
+Missing customer id path:
+
+```bash
+curl "http://localhost:8080/api/v1/rewards/customers/"
+```
+
+Expected status: `404 Not Found`

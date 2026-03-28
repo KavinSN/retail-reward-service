@@ -1,7 +1,6 @@
 package com.retailrewards.dto.response;
 
 import java.util.List;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -13,7 +12,7 @@ public class CustomerRewardResponse {
     private final String customerName;
     private final String startDate;
     private final String endDate;
-    private final Map<String, Long> monthlyPoints;
+    private final List<MonthlyRewardPoints> monthlyPoints;
     private final long totalPoints;
     private final List<TransactionRewardDetails> transactions;
 }

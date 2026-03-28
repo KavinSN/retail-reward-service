@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,13 @@ public class GlobalExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /**
+     * Converts a missing-customer exception into a 404 response.
+     *
+     * @param exception missing customer exception
+     * @param request current HTTP request
+     * @return standardized error response
+     */
     @ExceptionHandler(CustomerNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleCustomerNotFound(CustomerNotFoundException exception,
             HttpServletRequest request) {
@@ -29,6 +37,13 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, Collections.singletonList(exception.getMessage()), request);
     }
 
+    /**
+     * Converts request validation or business-request errors into a 400 response.
+     *
+     * @param exception invalid request exception
+     * @param request current HTTP request
+     * @return standardized error response
+     */
     @ExceptionHandler(InvalidRequestException.class)
     public ResponseEntity<ErrorResponse> handleInvalidRequest(InvalidRequestException exception,
             HttpServletRequest request) {
@@ -36,6 +51,13 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, Collections.singletonList(exception.getMessage()), request);
     }
 
+    /**
+     * Converts request parameter type mismatches into a 400 response.
+     *
+     * @param exception parameter type mismatch exception
+     * @param request current HTTP request
+     * @return standardized error response
+     */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException exception,
             HttpServletRequest request) {
@@ -44,6 +66,13 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, Collections.singletonList(message), request);
     }
 
+    /**
+     * Converts bean validation failures on request bodies into a 400 response.
+     *
+     * @param exception method argument validation exception
+     * @param request current HTTP request
+     * @return standardized error response
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException exception,
             HttpServletRequest request) {
@@ -56,6 +85,31 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, messages, request);
     }
 
+    /**
+     * Converts parameter-level constraint violations into a 400 response.
+     *
+     * @param exception constraint violation exception
+     * @param request current HTTP request
+     * @return standardized error response
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException exception,
+            HttpServletRequest request) {
+        List<String> messages = exception.getConstraintViolations().stream()
+                .map(violation -> violation.getMessage())
+                .distinct()
+                .collect(Collectors.toList());
+        LOGGER.warn("Constraint validation failed: {}", messages);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, messages, request);
+    }
+
+    /**
+     * Converts unreadable request payload errors into a 400 response.
+     *
+     * @param exception unreadable message exception
+     * @param request current HTTP request
+     * @return standardized error response
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableMessage(HttpMessageNotReadableException exception,
             HttpServletRequest request) {
@@ -64,6 +118,13 @@ public class GlobalExceptionHandler {
                 Collections.singletonList("Request body is required and must be valid JSON"), request);
     }
 
+    /**
+     * Converts any unhandled exception into a generic 500 response.
+     *
+     * @param exception unhandled exception
+     * @param request current HTTP request
+     * @return standardized error response
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception exception, HttpServletRequest request) {
         LOGGER.error("Unhandled exception", exception);

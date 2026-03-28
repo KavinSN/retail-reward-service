@@ -20,14 +20,14 @@ public class TransactionRepository {
 
     private final ExecutorService rewardsTaskExecutor = Executors.newFixedThreadPool(2);
 
-    public CompletableFuture<List<Transaction>> findAllTransactionsAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            simulateDelay();
-            log.info("All transactions fetched from in-memory dataset");
-            return buildTransactions();
-        }, rewardsTaskExecutor);
-    }
-
+    /**
+     * Retrieves transactions for a customer within the provided inclusive date range.
+     *
+     * @param customerId customer identifier to filter by
+     * @param startDate inclusive range start date
+     * @param endDate inclusive range end date
+     * @return future containing matching transactions
+     */
     public CompletableFuture<List<Transaction>> findTransactionsByCustomerIdAndDateRangeAsync(String customerId,
             LocalDate startDate, LocalDate endDate) {
         return CompletableFuture.supplyAsync(() -> {
@@ -41,6 +41,12 @@ public class TransactionRepository {
         }, rewardsTaskExecutor);
     }
 
+    /**
+     * Retrieves the latest transaction date available for the requested customer.
+     *
+     * @param customerId customer identifier to filter by
+     * @return future containing the latest transaction date when available
+     */
     public CompletableFuture<Optional<LocalDate>> findLatestTransactionDateByCustomerIdAsync(String customerId) {
         return CompletableFuture.supplyAsync(() -> {
             simulateDelay();
