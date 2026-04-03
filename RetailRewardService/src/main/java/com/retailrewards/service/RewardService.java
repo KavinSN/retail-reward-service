@@ -1,15 +1,13 @@
 package com.retailrewards.service;
 
-import com.retailrewards.calculator.RewardCalculator;
 import com.retailrewards.dto.response.CustomerRewardResponse;
 import com.retailrewards.dto.response.MonthlyRewardPoints;
 import com.retailrewards.dto.response.TransactionRewardDetails;
 import com.retailrewards.exception.CustomerNotFoundException;
+import com.retailrewards.exception.InvalidRequestException;
 import com.retailrewards.model.Customer;
 import com.retailrewards.model.DateRange;
-import com.retailrewards.model.RewardTransaction;
 import com.retailrewards.model.Transaction;
-import com.retailrewards.exception.InvalidRequestException;
 import com.retailrewards.repository.CustomerRepository;
 import com.retailrewards.repository.TransactionRepository;
 import com.retailrewards.util.ApplicationConstants;
@@ -19,8 +17,10 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,6 @@ public class RewardService {
 
     private final TransactionRepository transactionRepository;
     private final CustomerRepository customerRepository;
-    private final RewardCalculator rewardCalculator;
 
     /**
      * Builds the reward response for a single customer using either a rolling month filter or a date range.
@@ -102,12 +101,8 @@ public class RewardService {
 
     private CustomerRewardResponse buildCustomerRewardResponse(Customer customer, DateRange dateRange,
             List<Transaction> transactions) {
-        List<RewardTransaction> rewardTransactions = transactions.stream()
-                .map(transaction -> new RewardTransaction(transaction.getAmount(), transaction.getTransactionDate()))
-                .collect(Collectors.toList());
-
-        List<MonthlyRewardPoints> monthlyPoints = rewardCalculator.calculateMonthlyPoints(rewardTransactions);
-        long totalPoints = rewardCalculator.calculateTotalPoints(rewardTransactions);
+        List<MonthlyRewardPoints> monthlyPoints = calculateMonthlyPoints(transactions);
+        long totalPoints = calculateTotalPoints(transactions);
         List<TransactionRewardDetails> transactionRewardDetails = transactions.stream()
                 .map(this::toTransactionRewardDetails)
                 .collect(Collectors.toList());
@@ -120,10 +115,38 @@ public class RewardService {
     private TransactionRewardDetails toTransactionRewardDetails(Transaction transaction) {
         return new TransactionRewardDetails(transaction.getTransactionId(),
                 transaction.getTransactionDate().format(DATE_FORMATTER), transaction.getDescription(),
-                formatAmount(transaction.getAmount()), rewardCalculator.calculatePoints(transaction.getAmount()));
+                formatAmount(transaction.getAmount()), calculatePoints(transaction.getAmount()));
     }
 
     private String formatAmount(BigDecimal amount) {
         return amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private long calculatePoints(BigDecimal transactionAmount) {
+        long amount = transactionAmount.setScale(0, RoundingMode.DOWN).longValueExact();
+        if (amount <= 50L) {
+            return 0L;
+        }
+        if (amount <= 100L) {
+            return amount - 50L;
+        }
+        return 50L + ((amount - 100L) * 2L);
+    }
+
+    private long calculateTotalPoints(List<Transaction> transactions) {
+        return transactions.stream()
+                .mapToLong(transaction -> calculatePoints(transaction.getAmount()))
+                .sum();
+    }
+
+    private List<MonthlyRewardPoints> calculateMonthlyPoints(List<Transaction> transactions) {
+        return transactions.stream()
+                .collect(Collectors.groupingBy(transaction -> YearMonth.from(transaction.getTransactionDate()),
+                        Collectors.summingLong(transaction -> calculatePoints(transaction.getAmount()))))
+                .entrySet().stream()
+                .sorted((left, right) -> right.getKey().compareTo(left.getKey()))
+                .map(entry -> new MonthlyRewardPoints(entry.getKey().getYear(),
+                        entry.getKey().getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH), entry.getValue()))
+                .collect(Collectors.toList());
     }
 }
