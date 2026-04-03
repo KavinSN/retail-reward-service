@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import com.retailrewards.calculator.RewardCalculator;
 import com.retailrewards.dto.response.CustomerRewardResponse;
 import com.retailrewards.exception.CustomerNotFoundException;
 import com.retailrewards.exception.InvalidRequestException;
@@ -22,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +41,7 @@ class RewardServiceTest {
 
     @BeforeEach
     void setUp() {
-        rewardService = new RewardService(transactionRepository, customerRepository, new RewardCalculator());
+        rewardService = new RewardService(transactionRepository, customerRepository);
     }
 
     @Test
@@ -72,6 +72,30 @@ class RewardServiceTest {
         assertEquals(90L, response.getMonthlyPoints().get(1).getRewardPoints());
         assertEquals(115L, response.getTotalPoints());
         assertEquals(2, response.getTransactions().size());
+    }
+
+    @Test
+    void shouldCalculateTieredPointsAndRoundAmountsDownInsideServiceResponse() {
+        Customer customer = new Customer("C1001", "Kavin");
+        List<Transaction> transactions = Arrays.asList(
+                new Transaction("T1", "C1001", LocalDate.of(2026, 3, 10), new BigDecimal("50.99"), "No points"),
+                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 11), new BigDecimal("100.99"), "Single tier"),
+                new Transaction("T3", "C1001", LocalDate.of(2026, 3, 12), new BigDecimal("120.99"), "Double tier"));
+
+        when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31)))
+                .thenReturn(CompletableFuture.completedFuture(transactions));
+
+        CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
+                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31));
+
+        assertEquals(140L, response.getTotalPoints());
+        assertEquals(1, response.getMonthlyPoints().size());
+        assertEquals(140L, response.getMonthlyPoints().get(0).getRewardPoints());
+        assertEquals(0L, response.getTransactions().get(0).getRewardPoints());
+        assertEquals(50L, response.getTransactions().get(1).getRewardPoints());
+        assertEquals(90L, response.getTransactions().get(2).getRewardPoints());
     }
 
     @Test
@@ -192,5 +216,64 @@ class RewardServiceTest {
                 () -> rewardService.getCustomerRewards("C1001", null, null, null));
 
         assertEquals("No transaction data available", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowWhenMonthsAndDateRangeAreProvidedTogether() {
+        when(customerRepository.findById("C1001"))
+                .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
+
+        InvalidRequestException exception = assertThrows(InvalidRequestException.class,
+                () -> rewardService.getCustomerRewards("C1001", 2, LocalDate.of(2026, 2, 1), null));
+
+        assertEquals("Provide either months or a startDate/endDate range, not both", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowWhenStartDateIsAfterEndDate() {
+        when(customerRepository.findById("C1001"))
+                .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
+
+        InvalidRequestException exception = assertThrows(InvalidRequestException.class,
+                () -> rewardService.getCustomerRewards("C1001", null, LocalDate.of(2026, 3, 31),
+                        LocalDate.of(2026, 1, 1)));
+
+        assertEquals("Provide a valid date range with startDate on or before endDate", exception.getMessage());
+    }
+
+    @Test
+    void shouldPropagateFailureWhenLatestTransactionLookupFails() {
+        when(customerRepository.findById("C1001"))
+                .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
+        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync("C1001"))
+                .thenReturn(failedFuture(new IllegalStateException("lookup failed")));
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> rewardService.getCustomerRewards("C1001", null, null, null));
+
+        assertTrue(exception.getCause() instanceof IllegalStateException);
+        assertEquals("lookup failed", exception.getCause().getMessage());
+    }
+
+    @Test
+    void shouldPropagateFailureWhenTransactionLookupFails() {
+        when(customerRepository.findById("C1001"))
+                .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
+                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31)))
+                .thenReturn(failedFuture(new IllegalStateException("transaction fetch failed")));
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> rewardService.getCustomerRewards("C1001", null, LocalDate.of(2026, 2, 1),
+                        LocalDate.of(2026, 3, 31)));
+
+        assertTrue(exception.getCause() instanceof IllegalStateException);
+        assertEquals("transaction fetch failed", exception.getCause().getMessage());
+    }
+
+    private <T> CompletableFuture<T> failedFuture(Throwable throwable) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        future.completeExceptionally(throwable);
+        return future;
     }
 }
