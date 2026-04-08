@@ -52,10 +52,8 @@ class RewardServiceTest {
                 new Transaction("T2", "C1001", LocalDate.of(2026, 3, 10), new BigDecimal("75.00"), "March order"));
 
         when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
-        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync("C1001"))
-                .thenReturn(CompletableFuture.completedFuture(Optional.of(LocalDate.of(2026, 3, 10))));
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync(eq("C1001"), any(LocalDate.class),
-                any(LocalDate.class))).thenReturn(CompletableFuture.completedFuture(transactions));
+        mockLatestTransactionDate("C1001", LocalDate.of(2026, 3, 10));
+        mockTransactions("C1001", transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null, null, null);
 
@@ -83,9 +81,7 @@ class RewardServiceTest {
                 new Transaction("T3", "C1001", LocalDate.of(2026, 3, 12), new BigDecimal("120.99"), "Double tier"));
 
         when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
-                LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31)))
-                .thenReturn(CompletableFuture.completedFuture(transactions));
+        mockTransactions("C1001", LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31), transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
                 LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31));
@@ -106,9 +102,7 @@ class RewardServiceTest {
                 new Transaction("T3", "C1002", LocalDate.of(2026, 3, 2), new BigDecimal("55.00"), "Inside range"));
 
         when(customerRepository.findById("C1002")).thenReturn(Optional.of(customer));
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1002",
-                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31)))
-                .thenReturn(CompletableFuture.completedFuture(transactions));
+        mockTransactions("C1002", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31), transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1002", null,
                 LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31));
@@ -136,9 +130,7 @@ class RewardServiceTest {
                 new Transaction("T2", "C1001", LocalDate.of(2026, 3, 12), new BigDecimal("210.00"), "Inside range"));
 
         when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
-                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 4, 30)))
-                .thenReturn(CompletableFuture.completedFuture(transactions));
+        mockTransactions("C1001", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 4, 30), transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
                 LocalDate.of(2026, 2, 1), null);
@@ -156,9 +148,7 @@ class RewardServiceTest {
                 new Transaction("T2", "C1001", LocalDate.of(2026, 3, 22), new BigDecimal("51.25"), "Inside range"));
 
         when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
-                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31)))
-                .thenReturn(CompletableFuture.completedFuture(transactions));
+        mockTransactions("C1001", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
                 null, LocalDate.of(2026, 3, 31));
@@ -191,9 +181,7 @@ class RewardServiceTest {
         Customer customer = new Customer("C1001", "Kavin");
 
         when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
-                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30)))
-                .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+        mockTransactions("C1001", LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Collections.emptyList());
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
                 LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30));
@@ -209,8 +197,7 @@ class RewardServiceTest {
     void shouldThrowWhenNoTransactionsExistForCustomerDateResolution() {
         when(customerRepository.findById("C1001"))
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
-        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync("C1001"))
-                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        mockNoLatestTransactionDate("C1001");
 
         InvalidRequestException exception = assertThrows(InvalidRequestException.class,
                 () -> rewardService.getCustomerRewards("C1001", null, null, null));
@@ -245,8 +232,7 @@ class RewardServiceTest {
     void shouldPropagateFailureWhenLatestTransactionLookupFails() {
         when(customerRepository.findById("C1001"))
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
-        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync("C1001"))
-                .thenReturn(failedFuture(new IllegalStateException("lookup failed")));
+        mockLatestTransactionFailure("C1001", new IllegalStateException("lookup failed"));
 
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> rewardService.getCustomerRewards("C1001", null, null, null));
@@ -259,9 +245,8 @@ class RewardServiceTest {
     void shouldPropagateFailureWhenTransactionLookupFails() {
         when(customerRepository.findById("C1001"))
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1001",
-                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31)))
-                .thenReturn(failedFuture(new IllegalStateException("transaction fetch failed")));
+        mockTransactionFailure("C1001", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31),
+                new IllegalStateException("transaction fetch failed"));
 
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> rewardService.getCustomerRewards("C1001", null, LocalDate.of(2026, 2, 1),
@@ -270,10 +255,38 @@ class RewardServiceTest {
         assertTrue(exception.getCause() instanceof IllegalStateException);
         assertEquals("transaction fetch failed", exception.getCause().getMessage());
     }
+    private void mockLatestTransactionDate(String customerId, LocalDate transactionDate) {
+        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync(customerId))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(transactionDate)));
+    }
 
-    private <T> CompletableFuture<T> failedFuture(Throwable throwable) {
-        CompletableFuture<T> future = new CompletableFuture<>();
+    private void mockNoLatestTransactionDate(String customerId) {
+        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync(customerId))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+    }
+
+    private void mockTransactions(String customerId, List<Transaction> transactions) {
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync(eq(customerId), any(LocalDate.class),
+                any(LocalDate.class))).thenReturn(CompletableFuture.completedFuture(transactions));
+    }
+
+    private void mockTransactions(String customerId, LocalDate startDate, LocalDate endDate,
+            List<Transaction> transactions) {
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync(customerId, startDate, endDate))
+                .thenReturn(CompletableFuture.completedFuture(transactions));
+    }
+
+    private void mockLatestTransactionFailure(String customerId, Throwable throwable) {
+        CompletableFuture<Optional<LocalDate>> future = new CompletableFuture<>();
         future.completeExceptionally(throwable);
-        return future;
+        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync(customerId)).thenReturn(future);
+    }
+
+    private void mockTransactionFailure(String customerId, LocalDate startDate, LocalDate endDate,
+            Throwable throwable) {
+        CompletableFuture<List<Transaction>> future = new CompletableFuture<>();
+        future.completeExceptionally(throwable);
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync(customerId, startDate, endDate))
+                .thenReturn(future);
     }
 }
