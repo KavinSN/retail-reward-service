@@ -15,8 +15,8 @@ class TransactionRepositoryTest {
 
     @Test
     void shouldReturnTransactionsForCustomerWithinDateRange() {
-        List<Transaction> transactions = transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync("C1002",
-                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31)).join();
+        List<Transaction> transactions = transactionRepository.findTransactionsByCustomerIdAndDateRange("C1002",
+                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31));
 
         assertEquals(4, transactions.size());
         assertTrue(transactions.stream().allMatch(transaction -> "C1002".equals(transaction.getCustomerId())));
@@ -26,17 +26,20 @@ class TransactionRepositoryTest {
 
     @Test
     void shouldReturnLatestTransactionDateForCustomer() {
-        Optional<LocalDate> latestTransactionDate = transactionRepository
-                .findLatestTransactionDateByCustomerIdAsync("C1001").join();
+        Optional<LocalDate> latestTransactionDate = transactionRepository.findLatestTransactionDateByCustomerId("C1001");
 
         assertTrue(latestTransactionDate.isPresent());
         assertEquals(LocalDate.of(2026, 3, 22), latestTransactionDate.get());
     }
 
     @Test
-    void shouldShutdownExecutorWithoutErrors() {
-        transactionRepository.shutdownExecutor();
+    void shouldExcludeTransactionsAfterEndDate() {
+        List<Transaction> transactions = transactionRepository.findTransactionsByCustomerIdAndDateRange("C1001",
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28));
 
-        assertTrue(true);
+        assertEquals(4, transactions.size());
+        assertEquals("T10004", transactions.get(transactions.size() - 1).getTransactionId());
+        assertTrue(transactions.stream()
+                .allMatch(transaction -> !transaction.getTransactionDate().isAfter(LocalDate.of(2026, 2, 28))));
     }
 }

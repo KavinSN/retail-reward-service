@@ -3,8 +3,6 @@ package com.retailrewards.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.retailrewards.dto.response.CustomerRewardResponse;
@@ -20,8 +18,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -234,11 +230,10 @@ class RewardServiceTest {
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
         mockLatestTransactionFailure("C1001", new IllegalStateException("lookup failed"));
 
-        CompletionException exception = assertThrows(CompletionException.class,
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
                 () -> rewardService.getCustomerRewards("C1001", null, null, null));
 
-        assertTrue(exception.getCause() instanceof IllegalStateException);
-        assertEquals("lookup failed", exception.getCause().getMessage());
+        assertEquals("lookup failed", exception.getMessage());
     }
 
     @Test
@@ -248,45 +243,40 @@ class RewardServiceTest {
         mockTransactionFailure("C1001", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31),
                 new IllegalStateException("transaction fetch failed"));
 
-        CompletionException exception = assertThrows(CompletionException.class,
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
                 () -> rewardService.getCustomerRewards("C1001", null, LocalDate.of(2026, 2, 1),
                         LocalDate.of(2026, 3, 31)));
 
-        assertTrue(exception.getCause() instanceof IllegalStateException);
-        assertEquals("transaction fetch failed", exception.getCause().getMessage());
+        assertEquals("transaction fetch failed", exception.getMessage());
     }
+
     private void mockLatestTransactionDate(String customerId, LocalDate transactionDate) {
-        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync(customerId))
-                .thenReturn(CompletableFuture.completedFuture(Optional.of(transactionDate)));
+        when(transactionRepository.findLatestTransactionDateByCustomerId(customerId)).thenReturn(Optional.of(transactionDate));
     }
 
     private void mockNoLatestTransactionDate(String customerId) {
-        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync(customerId))
-                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(transactionRepository.findLatestTransactionDateByCustomerId(customerId)).thenReturn(Optional.empty());
     }
 
     private void mockTransactions(String customerId, List<Transaction> transactions) {
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync(eq(customerId), any(LocalDate.class),
-                any(LocalDate.class))).thenReturn(CompletableFuture.completedFuture(transactions));
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRange(customerId, LocalDate.of(2026, 1, 1),
+                LocalDate.of(2026, 3, 31))).thenReturn(transactions);
     }
 
     private void mockTransactions(String customerId, LocalDate startDate, LocalDate endDate,
             List<Transaction> transactions) {
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync(customerId, startDate, endDate))
-                .thenReturn(CompletableFuture.completedFuture(transactions));
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRange(customerId, startDate, endDate))
+                .thenReturn(transactions);
     }
 
     private void mockLatestTransactionFailure(String customerId, Throwable throwable) {
-        CompletableFuture<Optional<LocalDate>> future = new CompletableFuture<>();
-        future.completeExceptionally(throwable);
-        when(transactionRepository.findLatestTransactionDateByCustomerIdAsync(customerId)).thenReturn(future);
+        when(transactionRepository.findLatestTransactionDateByCustomerId(customerId))
+                .thenThrow(throwable);
     }
 
     private void mockTransactionFailure(String customerId, LocalDate startDate, LocalDate endDate,
             Throwable throwable) {
-        CompletableFuture<List<Transaction>> future = new CompletableFuture<>();
-        future.completeExceptionally(throwable);
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync(customerId, startDate, endDate))
-                .thenReturn(future);
+        when(transactionRepository.findTransactionsByCustomerIdAndDateRange(customerId, startDate, endDate))
+                .thenThrow(throwable);
     }
 }

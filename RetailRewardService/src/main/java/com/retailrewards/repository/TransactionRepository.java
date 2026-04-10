@@ -6,11 +6,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-import javax.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
@@ -18,57 +14,35 @@ import org.springframework.stereotype.Repository;
 @Slf4j
 public class TransactionRepository {
 
-    private final ExecutorService rewardsTaskExecutor = Executors.newFixedThreadPool(2);
-
     /**
      * Retrieves transactions for a customer within the provided inclusive date range.
      *
      * @param customerId customer identifier to filter by
      * @param startDate inclusive range start date
      * @param endDate inclusive range end date
-     * @return future containing matching transactions
+     * @return matching transactions
      */
-    public CompletableFuture<List<Transaction>> findTransactionsByCustomerIdAndDateRangeAsync(String customerId,
+    public List<Transaction> findTransactionsByCustomerIdAndDateRange(String customerId,
             LocalDate startDate, LocalDate endDate) {
-        return CompletableFuture.supplyAsync(() -> {
-            simulateDelay();
-            log.info("Transactions fetched for customer {} between {} and {}", customerId, startDate, endDate);
-            return buildTransactions().stream()
-                    .filter(transaction -> transaction.getCustomerId().equalsIgnoreCase(customerId))
-                    .filter(transaction -> !transaction.getTransactionDate().isBefore(startDate))
-                    .filter(transaction -> !transaction.getTransactionDate().isAfter(endDate))
-                    .collect(Collectors.toList());
-        }, rewardsTaskExecutor);
+        log.info("Transactions fetched for customer {} between {} and {}", customerId, startDate, endDate);
+        return buildTransactions().stream()
+                .filter(transaction -> transaction.getCustomerId().equalsIgnoreCase(customerId))
+                .filter(transaction -> !transaction.getTransactionDate().isBefore(startDate))
+                .filter(transaction -> !transaction.getTransactionDate().isAfter(endDate))
+                .collect(Collectors.toList());
     }
 
     /**
      * Retrieves the latest transaction date available for the requested customer.
      *
      * @param customerId customer identifier to filter by
-     * @return future containing the latest transaction date when available
+     * @return latest transaction date when available
      */
-    public CompletableFuture<Optional<LocalDate>> findLatestTransactionDateByCustomerIdAsync(String customerId) {
-        return CompletableFuture.supplyAsync(() -> {
-            simulateDelay();
-            return buildTransactions().stream()
-                    .filter(transaction -> transaction.getCustomerId().equalsIgnoreCase(customerId))
-                    .map(Transaction::getTransactionDate)
-                    .max(LocalDate::compareTo);
-        }, rewardsTaskExecutor);
-    }
-
-    @PreDestroy
-    void shutdownExecutor() {
-        rewardsTaskExecutor.shutdown();
-    }
-
-    private void simulateDelay() {
-        try {
-            Thread.sleep(150L);
-        } catch (InterruptedException interruptedException) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Transaction retrieval was interrupted", interruptedException);
-        }
+    public Optional<LocalDate> findLatestTransactionDateByCustomerId(String customerId) {
+        return buildTransactions().stream()
+                .filter(transaction -> transaction.getCustomerId().equalsIgnoreCase(customerId))
+                .map(Transaction::getTransactionDate)
+                .max(LocalDate::compareTo);
     }
 
     private List<Transaction> buildTransactions() {

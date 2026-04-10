@@ -84,8 +84,7 @@ public class RewardService {
     }
 
     private DateRange resolveRollingDateRange(String customerId, int monthCount) {
-        LocalDate latestTransactionDate = transactionRepository.findLatestTransactionDateByCustomerIdAsync(customerId)
-                .join()
+        LocalDate latestTransactionDate = transactionRepository.findLatestTransactionDateByCustomerId(customerId)
                 .orElseThrow(() -> new InvalidRequestException(ApplicationConstants.MESSAGE_NO_TRANSACTIONS));
 
         YearMonth endingMonth = YearMonth.from(latestTransactionDate);
@@ -93,8 +92,8 @@ public class RewardService {
     }
 
     private List<Transaction> getTransactionsByCustomerAndDateRange(String customerId, DateRange dateRange) {
-        return transactionRepository.findTransactionsByCustomerIdAndDateRangeAsync(customerId, dateRange.getStartDate(),
-                dateRange.getEndDate()).join().stream()
+        return transactionRepository.findTransactionsByCustomerIdAndDateRange(customerId, dateRange.getStartDate(),
+                dateRange.getEndDate()).stream()
                 .sorted(Comparator.comparing(Transaction::getTransactionDate))
                 .collect(Collectors.toList());
     }
