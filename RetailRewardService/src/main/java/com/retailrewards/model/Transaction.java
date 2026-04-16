@@ -2,16 +2,34 @@ package com.retailrewards.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+@Entity
+@Table(name = "reward_transactions")
 @Getter
+@NoArgsConstructor
 @AllArgsConstructor
 public class Transaction {
 
-    private final String transactionId;
-    private final String customerId;
-    private final LocalDate transactionDate;
-    private final BigDecimal amount;
-    private final String description;
+    @Id
+    @Column(name = "transaction_id", nullable = false, length = 20)
+    private String transactionId;
+
+    @Column(name = "customer_id", nullable = false, length = 20)
+    private String customerId;
+
+    @Column(name = "transaction_date", nullable = false)
+    private LocalDate transactionDate;
+
+    @Column(name = "amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal amount;
+
+    @Column(name = "description", nullable = false, length = 150)
+    private String description;
 }

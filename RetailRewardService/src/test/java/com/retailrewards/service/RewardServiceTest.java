@@ -6,8 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.retailrewards.dto.response.CustomerRewardResponse;
-import com.retailrewards.exception.CustomerNotFoundException;
-import com.retailrewards.exception.InvalidRequestException;
+import com.retailrewards.exception.RewardException;
 import com.retailrewards.model.Customer;
 import com.retailrewards.model.Transaction;
 import com.retailrewards.repository.CustomerRepository;
@@ -23,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
 class RewardServiceTest {
@@ -47,7 +47,7 @@ class RewardServiceTest {
                 new Transaction("T1", "C1001", LocalDate.of(2026, 1, 5), new BigDecimal("120.00"), "January order"),
                 new Transaction("T2", "C1001", LocalDate.of(2026, 3, 10), new BigDecimal("75.00"), "March order"));
 
-        when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockLatestTransactionDate("C1001", LocalDate.of(2026, 3, 10));
         mockTransactions("C1001", transactions);
 
@@ -76,7 +76,7 @@ class RewardServiceTest {
                 new Transaction("T2", "C1001", LocalDate.of(2026, 3, 11), new BigDecimal("100.99"), "Single tier"),
                 new Transaction("T3", "C1001", LocalDate.of(2026, 3, 12), new BigDecimal("120.99"), "Double tier"));
 
-        when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockTransactions("C1001", LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31), transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
@@ -97,7 +97,7 @@ class RewardServiceTest {
                 new Transaction("T2", "C1002", LocalDate.of(2026, 2, 10), new BigDecimal("99.00"), "Inside range"),
                 new Transaction("T3", "C1002", LocalDate.of(2026, 3, 2), new BigDecimal("55.00"), "Inside range"));
 
-        when(customerRepository.findById("C1002")).thenReturn(Optional.of(customer));
+        when(customerRepository.findByCustomerIdIgnoreCase("C1002")).thenReturn(Optional.of(customer));
         mockTransactions("C1002", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31), transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1002", null,
@@ -125,7 +125,7 @@ class RewardServiceTest {
                 new Transaction("T1", "C1001", LocalDate.of(2026, 2, 4), new BigDecimal("45.00"), "Inside range"),
                 new Transaction("T2", "C1001", LocalDate.of(2026, 3, 12), new BigDecimal("210.00"), "Inside range"));
 
-        when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockTransactions("C1001", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 4, 30), transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
@@ -143,7 +143,7 @@ class RewardServiceTest {
                 new Transaction("T1", "C1001", LocalDate.of(2026, 1, 21), new BigDecimal("75.00"), "Inside range"),
                 new Transaction("T2", "C1001", LocalDate.of(2026, 3, 22), new BigDecimal("51.25"), "Inside range"));
 
-        when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockTransactions("C1001", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), transactions);
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
@@ -156,27 +156,29 @@ class RewardServiceTest {
 
     @Test
     void shouldThrowWhenCustomerIdIsBlank() {
-        InvalidRequestException exception = assertThrows(InvalidRequestException.class,
+        RewardException exception = assertThrows(RewardException.class,
                 () -> rewardService.getCustomerRewards("   ", null, null, null));
 
         assertEquals("customerId is required", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
     }
 
     @Test
     void shouldThrowWhenRequestedForUnknownCustomer() {
-        when(customerRepository.findById("C9999")).thenReturn(Optional.empty());
+        when(customerRepository.findByCustomerIdIgnoreCase("C9999")).thenReturn(Optional.empty());
 
-        CustomerNotFoundException exception = assertThrows(CustomerNotFoundException.class,
+        RewardException exception = assertThrows(RewardException.class,
                 () -> rewardService.getCustomerRewards("C9999", null, null, null));
 
         assertTrue(exception.getMessage().contains("C9999"));
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
     }
 
     @Test
     void shouldReturnZeroPointsWhenRequestedRangeHasNoData() {
         Customer customer = new Customer("C1001", "Kavin");
 
-        when(customerRepository.findById("C1001")).thenReturn(Optional.of(customer));
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockTransactions("C1001", LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), Collections.emptyList());
 
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
@@ -191,42 +193,45 @@ class RewardServiceTest {
 
     @Test
     void shouldThrowWhenNoTransactionsExistForCustomerDateResolution() {
-        when(customerRepository.findById("C1001"))
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001"))
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
         mockNoLatestTransactionDate("C1001");
 
-        InvalidRequestException exception = assertThrows(InvalidRequestException.class,
+        RewardException exception = assertThrows(RewardException.class,
                 () -> rewardService.getCustomerRewards("C1001", null, null, null));
 
         assertEquals("No transaction data available", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
     }
 
     @Test
     void shouldThrowWhenMonthsAndDateRangeAreProvidedTogether() {
-        when(customerRepository.findById("C1001"))
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001"))
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
 
-        InvalidRequestException exception = assertThrows(InvalidRequestException.class,
+        RewardException exception = assertThrows(RewardException.class,
                 () -> rewardService.getCustomerRewards("C1001", 2, LocalDate.of(2026, 2, 1), null));
 
         assertEquals("Provide either months or a startDate/endDate range, not both", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
     }
 
     @Test
     void shouldThrowWhenStartDateIsAfterEndDate() {
-        when(customerRepository.findById("C1001"))
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001"))
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
 
-        InvalidRequestException exception = assertThrows(InvalidRequestException.class,
+        RewardException exception = assertThrows(RewardException.class,
                 () -> rewardService.getCustomerRewards("C1001", null, LocalDate.of(2026, 3, 31),
                         LocalDate.of(2026, 1, 1)));
 
         assertEquals("Provide a valid date range with startDate on or before endDate", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
     }
 
     @Test
     void shouldPropagateFailureWhenLatestTransactionLookupFails() {
-        when(customerRepository.findById("C1001"))
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001"))
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
         mockLatestTransactionFailure("C1001", new IllegalStateException("lookup failed"));
 
@@ -238,7 +243,7 @@ class RewardServiceTest {
 
     @Test
     void shouldPropagateFailureWhenTransactionLookupFails() {
-        when(customerRepository.findById("C1001"))
+        when(customerRepository.findByCustomerIdIgnoreCase("C1001"))
                 .thenReturn(Optional.of(new Customer("C1001", "Kavin")));
         mockTransactionFailure("C1001", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31),
                 new IllegalStateException("transaction fetch failed"));
@@ -259,14 +264,14 @@ class RewardServiceTest {
     }
 
     private void mockTransactions(String customerId, List<Transaction> transactions) {
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRange(customerId, LocalDate.of(2026, 1, 1),
-                LocalDate.of(2026, 3, 31))).thenReturn(transactions);
+        when(transactionRepository.findByCustomerIdIgnoreCaseAndTransactionDateBetweenOrderByTransactionDateAsc(
+                customerId, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31))).thenReturn(transactions);
     }
 
     private void mockTransactions(String customerId, LocalDate startDate, LocalDate endDate,
             List<Transaction> transactions) {
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRange(customerId, startDate, endDate))
-                .thenReturn(transactions);
+        when(transactionRepository.findByCustomerIdIgnoreCaseAndTransactionDateBetweenOrderByTransactionDateAsc(
+                customerId, startDate, endDate)).thenReturn(transactions);
     }
 
     private void mockLatestTransactionFailure(String customerId, Throwable throwable) {
@@ -276,7 +281,7 @@ class RewardServiceTest {
 
     private void mockTransactionFailure(String customerId, LocalDate startDate, LocalDate endDate,
             Throwable throwable) {
-        when(transactionRepository.findTransactionsByCustomerIdAndDateRange(customerId, startDate, endDate))
-                .thenThrow(throwable);
+        when(transactionRepository.findByCustomerIdIgnoreCaseAndTransactionDateBetweenOrderByTransactionDateAsc(
+                customerId, startDate, endDate)).thenThrow(throwable);
     }
 }

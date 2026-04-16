@@ -40,18 +40,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldHandleCustomerNotFoundException() {
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleCustomerNotFound(
-                new CustomerNotFoundException("C9999"), request);
+    void shouldHandleRewardExceptionWithNotFoundStatus() {
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleRewardException(
+                new RewardException("Customer not found: C9999", HttpStatus.NOT_FOUND), request);
 
         assertErrorResponse(response, HttpStatus.NOT_FOUND, "Not Found",
                 "Customer not found: C9999");
     }
 
     @Test
-    void shouldHandleInvalidRequestException() {
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInvalidRequest(
-                new InvalidRequestException("Invalid request data"), request);
+    void shouldHandleRewardExceptionWithBadRequestStatus() {
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleRewardException(
+                new RewardException("Invalid request data", HttpStatus.BAD_REQUEST), request);
 
         assertErrorResponse(response, HttpStatus.BAD_REQUEST, "Bad Request",
                 "Invalid request data");

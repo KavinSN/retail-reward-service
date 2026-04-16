@@ -10,8 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.retailrewards.dto.response.CustomerRewardResponse;
 import com.retailrewards.dto.response.MonthlyRewardPoints;
 import com.retailrewards.dto.response.TransactionRewardDetails;
-import com.retailrewards.exception.CustomerNotFoundException;
-import com.retailrewards.exception.InvalidRequestException;
+import com.retailrewards.exception.RewardException;
 import com.retailrewards.service.RewardService;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -97,26 +96,28 @@ class RewardControllerTest {
     }
 
     @Test
-    void shouldPropagateCustomerNotFoundException() {
+    void shouldPropagateRewardExceptionWithNotFoundStatus() {
         given(rewardService.getCustomerRewards(eq("C9999"), eq(null), eq(null), eq(null)))
-                .willThrow(new CustomerNotFoundException("C9999"));
+                .willThrow(new RewardException("Customer not found: C9999", HttpStatus.NOT_FOUND));
 
-        CustomerNotFoundException exception = assertThrows(CustomerNotFoundException.class,
+        RewardException exception = assertThrows(RewardException.class,
                 () -> rewardController.getRewards("C9999", null, null, null));
 
         assertEquals("Customer not found: C9999", exception.getMessage());
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
         verify(rewardService).getCustomerRewards("C9999", null, null, null);
     }
 
     @Test
-    void shouldPropagateInvalidRequestException() {
+    void shouldPropagateRewardExceptionWithBadRequestStatus() {
         given(rewardService.getCustomerRewards(eq("C1001"), eq(null), eq(null), eq(null)))
-                .willThrow(new InvalidRequestException("No transaction data available"));
+                .willThrow(new RewardException("No transaction data available", HttpStatus.BAD_REQUEST));
 
-        InvalidRequestException exception = assertThrows(InvalidRequestException.class,
+        RewardException exception = assertThrows(RewardException.class,
                 () -> rewardController.getRewards("C1001", null, null, null));
 
         assertEquals("No transaction data available", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
         verify(rewardService).getCustomerRewards("C1001", null, null, null);
     }
 

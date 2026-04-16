@@ -25,7 +25,8 @@ The application exposes:
 - Java 8
 - Spring Boot 2.7.18
 - Maven
-- Synchronous in-memory repositories for customers and transactions
+- Spring Data JPA
+- H2 in-memory database
 
 ## Validation Notes
 - `customerId` is required.
@@ -44,6 +45,22 @@ The application exposes:
 - `src/main/java/com/retailrewards/dto/response`
 - `src/main/java/com/retailrewards/model`
 - `src/main/java/com/retailrewards/exception`
+- `src/main/resources/data.sql` for database seed data
+
+## Database
+The application uses an H2 in-memory database. Customer and transaction records are loaded from `src/main/resources/data.sql` during startup, so the sample API responses remain deterministic without hardcoded Java lists.
+
+H2 console:
+
+```text
+http://localhost:8080/h2-console
+```
+
+Connection details:
+
+- JDBC URL: `jdbc:h2:mem:retailrewards`
+- User: `sa`
+- Password: leave blank
 
 ## API
 ### Customer rewards and transactions

@@ -3,8 +3,7 @@ package com.retailrewards.service;
 import com.retailrewards.dto.response.CustomerRewardResponse;
 import com.retailrewards.dto.response.MonthlyRewardPoints;
 import com.retailrewards.dto.response.TransactionRewardDetails;
-import com.retailrewards.exception.CustomerNotFoundException;
-import com.retailrewards.exception.InvalidRequestException;
+import com.retailrewards.exception.RewardException;
 import com.retailrewards.model.Customer;
 import com.retailrewards.model.DateRange;
 import com.retailrewards.model.Transaction;
@@ -24,6 +23,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -59,8 +59,9 @@ public class RewardService {
     }
 
     private Customer findCustomerById(String customerId) {
-        return customerRepository.findById(customerId)
-                .orElseThrow(() -> new CustomerNotFoundException(customerId));
+        return customerRepository.findByCustomerIdIgnoreCase(customerId)
+                .orElseThrow(() -> new RewardException(
+                        ApplicationConstants.MESSAGE_CUSTOMER_NOT_FOUND_PREFIX + customerId, HttpStatus.NOT_FOUND));
     }
 
     private DateRange resolveCustomerDateRange(String customerId, Integer months, LocalDate startDate,
@@ -85,15 +86,16 @@ public class RewardService {
 
     private DateRange resolveRollingDateRange(String customerId, int monthCount) {
         LocalDate latestTransactionDate = transactionRepository.findLatestTransactionDateByCustomerId(customerId)
-                .orElseThrow(() -> new InvalidRequestException(ApplicationConstants.MESSAGE_NO_TRANSACTIONS));
+                .orElseThrow(() -> new RewardException(ApplicationConstants.MESSAGE_NO_TRANSACTIONS,
+                        HttpStatus.BAD_REQUEST));
 
         YearMonth endingMonth = YearMonth.from(latestTransactionDate);
         return new DateRange(endingMonth.minusMonths(monthCount - 1L).atDay(1), endingMonth.atEndOfMonth());
     }
 
     private List<Transaction> getTransactionsByCustomerAndDateRange(String customerId, DateRange dateRange) {
-        return transactionRepository.findTransactionsByCustomerIdAndDateRange(customerId, dateRange.getStartDate(),
-                dateRange.getEndDate()).stream()
+        return transactionRepository.findByCustomerIdIgnoreCaseAndTransactionDateBetweenOrderByTransactionDateAsc(
+                customerId, dateRange.getStartDate(), dateRange.getEndDate()).stream()
                 .sorted(Comparator.comparing(Transaction::getTransactionDate))
                 .collect(Collectors.toList());
     }

@@ -8,15 +8,20 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
+@DataJpaTest
 class TransactionRepositoryTest {
 
-    private final TransactionRepository transactionRepository = new TransactionRepository();
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     @Test
     void shouldReturnTransactionsForCustomerWithinDateRange() {
-        List<Transaction> transactions = transactionRepository.findTransactionsByCustomerIdAndDateRange("C1002",
-                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31));
+        List<Transaction> transactions =
+                transactionRepository.findByCustomerIdIgnoreCaseAndTransactionDateBetweenOrderByTransactionDateAsc(
+                        "C1002", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31));
 
         assertEquals(4, transactions.size());
         assertTrue(transactions.stream().allMatch(transaction -> "C1002".equals(transaction.getCustomerId())));
@@ -34,8 +39,9 @@ class TransactionRepositoryTest {
 
     @Test
     void shouldExcludeTransactionsAfterEndDate() {
-        List<Transaction> transactions = transactionRepository.findTransactionsByCustomerIdAndDateRange("C1001",
-                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28));
+        List<Transaction> transactions =
+                transactionRepository.findByCustomerIdIgnoreCaseAndTransactionDateBetweenOrderByTransactionDateAsc(
+                        "C1001", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28));
 
         assertEquals(4, transactions.size());
         assertEquals("T10004", transactions.get(transactions.size() - 1).getTransactionId());

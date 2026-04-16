@@ -1,7 +1,8 @@
 package com.retailrewards.util;
 
-import com.retailrewards.exception.InvalidRequestException;
+import com.retailrewards.exception.RewardException;
 import java.time.LocalDate;
+import org.springframework.http.HttpStatus;
 
 public final class ValidationUtils {
 
@@ -15,7 +16,7 @@ public final class ValidationUtils {
      */
     public static void validateCustomerId(String customerId) {
         if (customerId == null || customerId.trim().isEmpty()) {
-            throw new InvalidRequestException(ApplicationConstants.MESSAGE_CUSTOMER_ID_REQUIRED);
+            throw new RewardException(ApplicationConstants.MESSAGE_CUSTOMER_ID_REQUIRED, HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -28,16 +29,16 @@ public final class ValidationUtils {
      */
     public static void validateRequest(Integer months, LocalDate startDate, LocalDate endDate) {
         if (months != null && months < 1) {
-            throw new InvalidRequestException(ApplicationConstants.MESSAGE_INVALID_MONTHS);
+            throw new RewardException(ApplicationConstants.MESSAGE_INVALID_MONTHS, HttpStatus.BAD_REQUEST);
         }
         if (months != null && (startDate != null || endDate != null)) {
-            throw new InvalidRequestException(ApplicationConstants.MESSAGE_MONTHS_AND_DATE_RANGE);
+            throw new RewardException(ApplicationConstants.MESSAGE_MONTHS_AND_DATE_RANGE, HttpStatus.BAD_REQUEST);
         }
         if (startDate == null && endDate == null) {
             return;
         }
         if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
-            throw new InvalidRequestException(ApplicationConstants.MESSAGE_INVALID_DATE_RANGE);
+            throw new RewardException(ApplicationConstants.MESSAGE_INVALID_DATE_RANGE, HttpStatus.BAD_REQUEST);
         }
     }
 }

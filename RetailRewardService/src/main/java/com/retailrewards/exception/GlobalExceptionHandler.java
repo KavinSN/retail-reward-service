@@ -24,31 +24,16 @@ public class GlobalExceptionHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
-     * Converts a missing-customer exception into a 404 response.
+     * Converts reward-service business exceptions into the configured HTTP response.
      *
-     * @param exception missing customer exception
+     * @param exception reward-service exception
      * @param request current HTTP request
      * @return standardized error response
      */
-    @ExceptionHandler(CustomerNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleCustomerNotFound(CustomerNotFoundException exception,
-            HttpServletRequest request) {
-        LOGGER.warn("Customer lookup failed: {}", exception.getMessage());
-        return buildErrorResponse(HttpStatus.NOT_FOUND, Collections.singletonList(exception.getMessage()), request);
-    }
-
-    /**
-     * Converts request validation or business-request errors into a 400 response.
-     *
-     * @param exception invalid request exception
-     * @param request current HTTP request
-     * @return standardized error response
-     */
-    @ExceptionHandler(InvalidRequestException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidRequest(InvalidRequestException exception,
-            HttpServletRequest request) {
-        LOGGER.warn("Invalid request: {}", exception.getMessage());
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, Collections.singletonList(exception.getMessage()), request);
+    @ExceptionHandler(RewardException.class)
+    public ResponseEntity<ErrorResponse> handleRewardException(RewardException exception, HttpServletRequest request) {
+        LOGGER.warn("Reward request failed: {}", exception.getMessage());
+        return buildErrorResponse(exception.getStatus(), Collections.singletonList(exception.getMessage()), request);
     }
 
     /**
