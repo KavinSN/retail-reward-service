@@ -13,6 +13,6 @@ public class CustomerRewardResponse {
     private final String startDate;
     private final String endDate;
     private final List<MonthlyRewardPoints> monthlyPoints;
-    private final long totalPoints;
+    private final double totalPoints;
     private final List<TransactionRewardDetails> transactions;
 }

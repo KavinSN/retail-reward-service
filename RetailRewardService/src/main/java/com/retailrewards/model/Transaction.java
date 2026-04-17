@@ -1,6 +1,5 @@
 package com.retailrewards.model;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -27,8 +26,8 @@ public class Transaction {
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 
-    @Column(name = "amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal amount;
+    @Column(name = "amount", nullable = false)
+    private double amount;
 
     @Column(name = "description", nullable = false, length = 150)
     private String description;

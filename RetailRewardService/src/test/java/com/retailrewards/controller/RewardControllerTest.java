@@ -140,11 +140,11 @@ class RewardControllerTest {
                 "2026-02-01",
                 "2026-03-31",
                 Arrays.asList(
-                        new MonthlyRewardPoints(2026, "March", 271),
-                        new MonthlyRewardPoints(2026, "February", 110)),
-                381L,
+                        new MonthlyRewardPoints(2026, "March", 271.25),
+                        new MonthlyRewardPoints(2026, "February", 110.0)),
+                381.25,
                 Collections.singletonList(
                         new TransactionRewardDetails("T10004", "2026-02-16", "Electronics accessories", "130.00",
-                                110L)));
+                                110.0)));
     }
 }

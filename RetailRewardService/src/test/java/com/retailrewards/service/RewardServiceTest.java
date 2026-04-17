@@ -11,7 +11,6 @@ import com.retailrewards.model.Customer;
 import com.retailrewards.model.Transaction;
 import com.retailrewards.repository.CustomerRepository;
 import com.retailrewards.repository.TransactionRepository;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,8 +43,8 @@ class RewardServiceTest {
     void shouldReturnCombinedRewardsForSpecificCustomerUsingDefaultThreeMonths() {
         Customer customer = new Customer("C1001", "Kavin");
         List<Transaction> transactions = Arrays.asList(
-                new Transaction("T1", "C1001", LocalDate.of(2026, 1, 5), new BigDecimal("120.00"), "January order"),
-                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 10), new BigDecimal("75.00"), "March order"));
+                new Transaction("T1", "C1001", LocalDate.of(2026, 1, 5), 120.00, "January order"),
+                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 10), 75.00, "March order"));
 
         when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockLatestTransactionDate("C1001", LocalDate.of(2026, 3, 10));
@@ -60,21 +59,21 @@ class RewardServiceTest {
         assertEquals(2, response.getMonthlyPoints().size());
         assertEquals(2026, response.getMonthlyPoints().get(0).getYear());
         assertEquals("March", response.getMonthlyPoints().get(0).getMonth());
-        assertEquals(25L, response.getMonthlyPoints().get(0).getRewardPoints());
+        assertEquals(25.0, response.getMonthlyPoints().get(0).getRewardPoints());
         assertEquals(2026, response.getMonthlyPoints().get(1).getYear());
         assertEquals("January", response.getMonthlyPoints().get(1).getMonth());
-        assertEquals(90L, response.getMonthlyPoints().get(1).getRewardPoints());
-        assertEquals(115L, response.getTotalPoints());
+        assertEquals(90.0, response.getMonthlyPoints().get(1).getRewardPoints());
+        assertEquals(115.0, response.getTotalPoints());
         assertEquals(2, response.getTransactions().size());
     }
 
     @Test
-    void shouldCalculateTieredPointsAndRoundAmountsDownInsideServiceResponse() {
+    void shouldCalculateTieredPointsInsideServiceResponse() {
         Customer customer = new Customer("C1001", "Kavin");
         List<Transaction> transactions = Arrays.asList(
-                new Transaction("T1", "C1001", LocalDate.of(2026, 3, 10), new BigDecimal("50.99"), "No points"),
-                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 11), new BigDecimal("100.99"), "Single tier"),
-                new Transaction("T3", "C1001", LocalDate.of(2026, 3, 12), new BigDecimal("120.99"), "Double tier"));
+                new Transaction("T1", "C1001", LocalDate.of(2026, 3, 10), 50.00, "No points"),
+                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 11), 100.00, "Single tier"),
+                new Transaction("T3", "C1001", LocalDate.of(2026, 3, 12), 120.00, "Double tier"));
 
         when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockTransactions("C1001", LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31), transactions);
@@ -82,20 +81,20 @@ class RewardServiceTest {
         CustomerRewardResponse response = rewardService.getCustomerRewards("C1001", null,
                 LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31));
 
-        assertEquals(140L, response.getTotalPoints());
+        assertEquals(140.0, response.getTotalPoints());
         assertEquals(1, response.getMonthlyPoints().size());
-        assertEquals(140L, response.getMonthlyPoints().get(0).getRewardPoints());
-        assertEquals(0L, response.getTransactions().get(0).getRewardPoints());
-        assertEquals(50L, response.getTransactions().get(1).getRewardPoints());
-        assertEquals(90L, response.getTransactions().get(2).getRewardPoints());
+        assertEquals(140.0, response.getMonthlyPoints().get(0).getRewardPoints());
+        assertEquals(0.0, response.getTransactions().get(0).getRewardPoints());
+        assertEquals(50.0, response.getTransactions().get(1).getRewardPoints());
+        assertEquals(90.0, response.getTransactions().get(2).getRewardPoints());
     }
 
     @Test
     void shouldReturnCombinedRewardsForCustomDateRange() {
         Customer customer = new Customer("C1002", "Prabhu");
         List<Transaction> transactions = Arrays.asList(
-                new Transaction("T2", "C1002", LocalDate.of(2026, 2, 10), new BigDecimal("99.00"), "Inside range"),
-                new Transaction("T3", "C1002", LocalDate.of(2026, 3, 2), new BigDecimal("55.00"), "Inside range"));
+                new Transaction("T2", "C1002", LocalDate.of(2026, 2, 10), 99.00, "Inside range"),
+                new Transaction("T3", "C1002", LocalDate.of(2026, 3, 2), 55.00, "Inside range"));
 
         when(customerRepository.findByCustomerIdIgnoreCase("C1002")).thenReturn(Optional.of(customer));
         mockTransactions("C1002", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 31), transactions);
@@ -110,11 +109,11 @@ class RewardServiceTest {
         assertEquals(2, response.getMonthlyPoints().size());
         assertEquals(2026, response.getMonthlyPoints().get(0).getYear());
         assertEquals("March", response.getMonthlyPoints().get(0).getMonth());
-        assertEquals(5L, response.getMonthlyPoints().get(0).getRewardPoints());
+        assertEquals(5.0, response.getMonthlyPoints().get(0).getRewardPoints());
         assertEquals(2026, response.getMonthlyPoints().get(1).getYear());
         assertEquals("February", response.getMonthlyPoints().get(1).getMonth());
-        assertEquals(49L, response.getMonthlyPoints().get(1).getRewardPoints());
-        assertEquals(54L, response.getTotalPoints());
+        assertEquals(49.0, response.getMonthlyPoints().get(1).getRewardPoints());
+        assertEquals(54.0, response.getTotalPoints());
         assertEquals(2, response.getTransactions().size());
     }
 
@@ -122,8 +121,8 @@ class RewardServiceTest {
     void shouldResolveThreeMonthWindowWhenOnlyStartDateIsProvided() {
         Customer customer = new Customer("C1001", "Kavin");
         List<Transaction> transactions = Arrays.asList(
-                new Transaction("T1", "C1001", LocalDate.of(2026, 2, 4), new BigDecimal("45.00"), "Inside range"),
-                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 12), new BigDecimal("210.00"), "Inside range"));
+                new Transaction("T1", "C1001", LocalDate.of(2026, 2, 4), 45.00, "Inside range"),
+                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 12), 210.00, "Inside range"));
 
         when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockTransactions("C1001", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 4, 30), transactions);
@@ -140,8 +139,8 @@ class RewardServiceTest {
     void shouldResolveThreeMonthWindowWhenOnlyEndDateIsProvided() {
         Customer customer = new Customer("C1001", "Kavin");
         List<Transaction> transactions = Arrays.asList(
-                new Transaction("T1", "C1001", LocalDate.of(2026, 1, 21), new BigDecimal("75.00"), "Inside range"),
-                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 22), new BigDecimal("51.25"), "Inside range"));
+                new Transaction("T1", "C1001", LocalDate.of(2026, 1, 21), 75.00, "Inside range"),
+                new Transaction("T2", "C1001", LocalDate.of(2026, 3, 22), 51.25, "Inside range"));
 
         when(customerRepository.findByCustomerIdIgnoreCase("C1001")).thenReturn(Optional.of(customer));
         mockTransactions("C1001", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), transactions);
@@ -186,7 +185,7 @@ class RewardServiceTest {
 
         assertEquals("2026-04-01", response.getStartDate());
         assertEquals("2026-04-30", response.getEndDate());
-        assertEquals(0L, response.getTotalPoints());
+        assertEquals(0.0, response.getTotalPoints());
         assertTrue(response.getMonthlyPoints().isEmpty());
         assertTrue(response.getTransactions().isEmpty());
     }

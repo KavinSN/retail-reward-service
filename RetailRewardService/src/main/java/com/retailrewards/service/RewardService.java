@@ -11,8 +11,6 @@ import com.retailrewards.repository.CustomerRepository;
 import com.retailrewards.repository.TransactionRepository;
 import com.retailrewards.util.ApplicationConstants;
 import com.retailrewards.util.ValidationUtils;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -103,7 +101,7 @@ public class RewardService {
     private CustomerRewardResponse buildCustomerRewardResponse(Customer customer, DateRange dateRange,
             List<Transaction> transactions) {
         List<MonthlyRewardPoints> monthlyPoints = calculateMonthlyPoints(transactions);
-        long totalPoints = calculateTotalPoints(transactions);
+        double totalPoints = calculateTotalPoints(transactions);
         List<TransactionRewardDetails> transactionRewardDetails = transactions.stream()
                 .map(this::toTransactionRewardDetails)
                 .collect(Collectors.toList());
@@ -119,31 +117,30 @@ public class RewardService {
                 formatAmount(transaction.getAmount()), calculatePoints(transaction.getAmount()));
     }
 
-    private String formatAmount(BigDecimal amount) {
-        return amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
+    private String formatAmount(double amount) {
+        return String.format(Locale.US, "%.2f", amount);
     }
 
-    private long calculatePoints(BigDecimal transactionAmount) {
-        long amount = transactionAmount.setScale(0, RoundingMode.DOWN).longValueExact();
-        if (amount <= 50L) {
-            return 0L;
+    private double calculatePoints(double amount) {
+        if (amount <= 50D) {
+            return 0D;
         }
-        if (amount <= 100L) {
-            return amount - 50L;
+        if (amount <= 100D) {
+            return amount - 50D;
         }
-        return 50L + ((amount - 100L) * 2L);
+        return 50D + ((amount - 100D) * 2D);
     }
 
-    private long calculateTotalPoints(List<Transaction> transactions) {
+    private double calculateTotalPoints(List<Transaction> transactions) {
         return transactions.stream()
-                .mapToLong(transaction -> calculatePoints(transaction.getAmount()))
+                .mapToDouble(transaction -> calculatePoints(transaction.getAmount()))
                 .sum();
     }
 
     private List<MonthlyRewardPoints> calculateMonthlyPoints(List<Transaction> transactions) {
         return transactions.stream()
                 .collect(Collectors.groupingBy(transaction -> YearMonth.from(transaction.getTransactionDate()),
-                        Collectors.summingLong(transaction -> calculatePoints(transaction.getAmount()))))
+                        Collectors.summingDouble(transaction -> calculatePoints(transaction.getAmount()))))
                 .entrySet().stream()
                 .sorted((left, right) -> right.getKey().compareTo(left.getKey()))
                 .map(entry -> new MonthlyRewardPoints(entry.getKey().getYear(),

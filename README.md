@@ -6,12 +6,13 @@ Spring Boot application that calculates reward points for a retail customer and 
 
 A customer receives:
 
-- 2 points for every dollar spent above 100 dollars in a transaction
-- 1 point for every dollar spent between 51 and 100 dollars in a transaction
+- 2 points for every amount unit spent above 100 dollars in a transaction
+- 1 point for every amount unit spent between 51 and 100 dollars in a transaction
 
 Example:
 
 - `120` dollars = `(2 x 20) + (1 x 50) = 90` points
+- `51.25` dollars = `1.25` points
 
 The application exposes:
 
@@ -86,62 +87,62 @@ Sample response:
     {
       "year": 2026,
       "month": "March",
-      "rewardPoints": 271
+      "rewardPoints": 271.25
     },
     {
       "year": 2026,
       "month": "February",
-      "rewardPoints": 110
+      "rewardPoints": 110.0
     },
     {
       "year": 2026,
       "month": "January",
-      "rewardPoints": 115
+      "rewardPoints": 115.0
     }
   ],
-  "totalPoints": 496,
+  "totalPoints": 496.25,
   "transactions": [
     {
       "transactionId": "T10001",
       "transactionDate": "2026-01-05",
       "description": "Grocery order",
       "amount": "120.00",
-      "rewardPoints": 90
+      "rewardPoints": 90.0
     },
     {
       "transactionId": "T10002",
       "transactionDate": "2026-01-21",
       "description": "Home supplies",
       "amount": "75.00",
-      "rewardPoints": 25
+      "rewardPoints": 25.0
     },
     {
       "transactionId": "T10003",
       "transactionDate": "2026-02-04",
       "description": "Pharmacy purchase",
       "amount": "45.00",
-      "rewardPoints": 0
+      "rewardPoints": 0.0
     },
     {
       "transactionId": "T10004",
       "transactionDate": "2026-02-16",
       "description": "Electronics accessories",
       "amount": "130.00",
-      "rewardPoints": 110
+      "rewardPoints": 110.0
     },
     {
       "transactionId": "T10005",
       "transactionDate": "2026-03-12",
       "description": "Appliance order",
       "amount": "210.00",
-      "rewardPoints": 270
+      "rewardPoints": 270.0
     },
     {
       "transactionId": "T10006",
       "transactionDate": "2026-03-22",
       "description": "Pet supplies",
       "amount": "51.25",
-      "rewardPoints": 1
+      "rewardPoints": 1.25
     }
   ]
 }
@@ -165,43 +166,43 @@ Sample response:
     {
       "year": 2026,
       "month": "March",
-      "rewardPoints": 495
+      "rewardPoints": 496.5
     },
     {
       "year": 2026,
       "month": "February",
-      "rewardPoints": 179
+      "rewardPoints": 179.0
     }
   ],
-  "totalPoints": 674,
+  "totalPoints": 675.5,
   "transactions": [
     {
       "transactionId": "T20003",
       "transactionDate": "2026-02-10",
       "description": "Department store",
       "amount": "99.00",
-      "rewardPoints": 49
+      "rewardPoints": 49.0
     },
     {
       "transactionId": "T20004",
       "transactionDate": "2026-02-23",
       "description": "Furniture deposit",
       "amount": "140.00",
-      "rewardPoints": 130
+      "rewardPoints": 130.0
     },
     {
       "transactionId": "T20005",
       "transactionDate": "2026-03-02",
       "description": "Garden supplies",
       "amount": "55.00",
-      "rewardPoints": 5
+      "rewardPoints": 5.0
     },
     {
       "transactionId": "T20006",
       "transactionDate": "2026-03-19",
       "description": "Renovation materials",
       "amount": "320.75",
-      "rewardPoints": 490
+      "rewardPoints": 491.5
     }
   ]
 }

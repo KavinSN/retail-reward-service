@@ -31,16 +31,17 @@ class RewardControllerIntegrationTest {
                 .andExpect(jsonPath("$.monthlyPoints", hasSize(3)))
                 .andExpect(jsonPath("$.monthlyPoints[0].year").value(2026))
                 .andExpect(jsonPath("$.monthlyPoints[0].month").value("March"))
-                .andExpect(jsonPath("$.monthlyPoints[0].rewardPoints").value(271))
+                .andExpect(jsonPath("$.monthlyPoints[0].rewardPoints").value(271.25))
                 .andExpect(jsonPath("$.monthlyPoints[1].year").value(2026))
                 .andExpect(jsonPath("$.monthlyPoints[1].month").value("February"))
-                .andExpect(jsonPath("$.monthlyPoints[1].rewardPoints").value(110))
+                .andExpect(jsonPath("$.monthlyPoints[1].rewardPoints").value(110.0))
                 .andExpect(jsonPath("$.monthlyPoints[2].year").value(2026))
                 .andExpect(jsonPath("$.monthlyPoints[2].month").value("January"))
-                .andExpect(jsonPath("$.monthlyPoints[2].rewardPoints").value(115))
-                .andExpect(jsonPath("$.totalPoints").value(496))
+                .andExpect(jsonPath("$.monthlyPoints[2].rewardPoints").value(115.0))
+                .andExpect(jsonPath("$.totalPoints").value(496.25))
                 .andExpect(jsonPath("$.transactions", hasSize(6)))
-                .andExpect(jsonPath("$.transactions[0].transactionId").value("T10001"));
+                .andExpect(jsonPath("$.transactions[0].transactionId").value("T10001"))
+                .andExpect(jsonPath("$.transactions[5].rewardPoints").value(1.25));
     }
 
     @Test
@@ -53,7 +54,7 @@ class RewardControllerIntegrationTest {
                 .andExpect(jsonPath("$.monthlyPoints", hasSize(2)))
                 .andExpect(jsonPath("$.monthlyPoints[0].month").value("March"))
                 .andExpect(jsonPath("$.monthlyPoints[1].month").value("February"))
-                .andExpect(jsonPath("$.totalPoints").value(381))
+                .andExpect(jsonPath("$.totalPoints").value(381.25))
                 .andExpect(jsonPath("$.transactions", hasSize(4)));
     }
 
@@ -66,8 +67,9 @@ class RewardControllerIntegrationTest {
                 .andExpect(jsonPath("$.customerId").value("C1002"))
                 .andExpect(jsonPath("$.startDate").value("2026-02-01"))
                 .andExpect(jsonPath("$.endDate").value("2026-03-31"))
-                .andExpect(jsonPath("$.totalPoints").value(674))
-                .andExpect(jsonPath("$.transactions", hasSize(4)));
+                .andExpect(jsonPath("$.totalPoints").value(675.5))
+                .andExpect(jsonPath("$.transactions", hasSize(4)))
+                .andExpect(jsonPath("$.transactions[3].rewardPoints").value(491.5));
     }
 
     @Test
@@ -77,7 +79,7 @@ class RewardControllerIntegrationTest {
                 .andExpect(jsonPath("$.customerId").value("C1001"))
                 .andExpect(jsonPath("$.startDate").value("2026-02-01"))
                 .andExpect(jsonPath("$.endDate").value("2026-04-30"))
-                .andExpect(jsonPath("$.totalPoints").value(381))
+                .andExpect(jsonPath("$.totalPoints").value(381.25))
                 .andExpect(jsonPath("$.transactions", hasSize(4)));
     }
 
@@ -88,7 +90,7 @@ class RewardControllerIntegrationTest {
                 .andExpect(jsonPath("$.customerId").value("C1001"))
                 .andExpect(jsonPath("$.startDate").value("2026-01-01"))
                 .andExpect(jsonPath("$.endDate").value("2026-03-31"))
-                .andExpect(jsonPath("$.totalPoints").value(496))
+                .andExpect(jsonPath("$.totalPoints").value(496.25))
                 .andExpect(jsonPath("$.transactions", hasSize(6)));
     }
 

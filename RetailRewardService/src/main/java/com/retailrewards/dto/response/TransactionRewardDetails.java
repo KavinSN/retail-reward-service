@@ -11,5 +11,5 @@ public class TransactionRewardDetails {
     private final String transactionDate;
     private final String description;
     private final String amount;
-    private final long rewardPoints;
+    private final double rewardPoints;
 }

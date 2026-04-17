@@ -9,5 +9,5 @@ public class MonthlyRewardPoints {
 
     private final int year;
     private final String month;
-    private final long rewardPoints;
+    private final double rewardPoints;
 }
